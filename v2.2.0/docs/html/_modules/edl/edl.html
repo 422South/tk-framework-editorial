@@ -1,0 +1,966 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>edl.edl &mdash; tk-framework-editorial v1.4.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+
+
+
+
+    <link rel="top" title="tk-framework-editorial v1.4.0 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/>
+
+
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+
+  <div class="wy-grid-for-nav">
+
+
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+
+    <a href='http://developer.shotgridsoftware.com'>
+
+        <img style='width: 191px;
+                height: 60px;
+                margin: 2px;
+                border-radius: 0px;
+                padding: 0px;'
+            src='../../_static/logo@2x.png'/>
+
+    </a>
+
+
+
+            <a href="../../index.html" class="icon icon-home"> tk-framework-editorial
+
+
+
+          </a>
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+
+
+
+
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../edl.html">EDL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../timecode.html">Timecode</a></li>
+</ul>
+
+
+
+
+    <div style='margin-top: 50px;
+                margin-left: 10px;
+                margin-right: 10px;
+                padding: 10px;
+                color: #b3b3b3;
+                font-size: 70%;
+                border-radius: 3px;
+                background-color: #444;
+                line-height: 18px;
+                '>
+    <style>
+        a.custom_post_menu { display: inline;
+                             padding: 0px;
+                             text-decoration: underline; }
+    </style>
+
+    <b>tk-framework-editorial</b> v1.4.0.<br>
+
+        This documentation is part of the ShotGrid Pipeline Toolkit.
+
+    For more information, please visit
+    <a class=custom_post_menu href='https://support.shotgunsoftware.com/home'>ShotGrid Support</a>.
+    The code associated with this documentation can be found
+    <a class=custom_post_menu href='https://github.com/shotgunsoftware/tk-framework-editorial'>here</a>.
+
+    </div>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">tk-framework-editorial</a>
+
+      </nav>
+
+
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+
+      <li>edl.edl</li>
+
+
+      <li class="wy-breadcrumbs-aside">
+
+
+
+      </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <h1>Source code for edl.edl</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2016 Autodesk, Inc. All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Use of this software is subject to the terms of the Autodesk license agreement</span>
+<span class="c1"># provided at the time of installation or download, or which otherwise accompanies</span>
+<span class="c1"># this software in either electronic or hard copy form.</span>
+<span class="c1">#</span>
+<span class="kn">from</span> <span class="nn">.timecode</span> <span class="k">import</span> <span class="n">Timecode</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="k">import</span> <span class="n">BadBLError</span><span class="p">,</span> <span class="n">BadFCMError</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="c1"># A list of keywords we will be looking for in comments</span>
+<span class="n">_COMMENTS_KEYWORDS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;LOC&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SOURCE FILE&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TO CLIP NAME&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FROM CLIP NAME&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CLIP NAME&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ASC_SOP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ASC_SAT&quot;</span>
+<span class="p">]</span>
+<span class="c1"># Build a regular expression to match the keywords above, matching lines beginning</span>
+<span class="c1"># with :</span>
+<span class="c1"># * KEYWORD:</span>
+<span class="c1"># The regexp is build with : &quot;((?:&quot; + keyword1 + &quot;)|(?:&quot; + keyword2 + ... + &quot;))&quot;</span>
+<span class="c1"># &quot;)|(?:&quot; being used to join the different keywords together</span>
+<span class="n">_COMMENT_REGEXP</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="s2">&quot;\*?\s*(?P&lt;type&gt;(?:</span><span class="si">%s</span><span class="s2">))\s*:\s+(?P&lt;value&gt;.*)&quot;</span> <span class="o">%</span> <span class="s2">&quot;)|(?:&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_COMMENTS_KEYWORDS</span><span class="p">)</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="EditProcessor"><a class="viewcode-back" href="../../edl.html#edl.EditProcessor">[docs]</a><span class="k">class</span> <span class="nc">EditProcessor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An example of keeping previous parsed edit event around, while using the process</span>
+<span class="sd">    edit function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shot_regexp</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">EditProcessor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_previous_edit</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shot_regexp</span> <span class="o">=</span> <span class="n">shot_regexp</span>
+
+<div class="viewcode-block" id="EditProcessor.process"><a class="viewcode-back" href="../../edl.html#edl.EditProcessor.process">[docs]</a>    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">edit</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Example : process the current edit and display previous and current one</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">process_edit</span><span class="p">(</span><span class="n">edit</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shot_regexp</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Treated edit </span><span class="si">%s</span><span class="s2"> previous was </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">edit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_previous_edit</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_previous_edit</span> <span class="o">=</span> <span class="n">edit</span></div></div>
+
+
+<div class="viewcode-block" id="process_edit"><a class="viewcode-back" href="../../edl.html#edl.process_edit">[docs]</a><span class="k">def</span> <span class="nf">process_edit</span><span class="p">(</span><span class="n">edit</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">shot_regexp</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract standard meta data from comments for an Edit:</span>
+
+<span class="sd">    - name from ``* LOC: 01:00:00:12 YELLOW  MR0200``</span>
+<span class="sd">    - clip name from ``* FROM CLIP NAME:  246AA-6``</span>
+<span class="sd">    - tape from ``* SOURCE FILE: LR9907610``</span>
+<span class="sd">    - asc_sop and asc_sat from::</span>
+
+<span class="sd">        ASC_SOP (1.0854 1.0451 0.9943)(0.0009 0.0022 -0.0292)(1.0163 1.0105 0.9424)</span>
+<span class="sd">        ASC_SAT 1.0000</span>
+
+<span class="sd">    If a regular expression is given, it will be used to extract extra information</span>
+<span class="sd">    from the edit name.</span>
+
+<span class="sd">    - a shot name</span>
+<span class="sd">    - a type</span>
+<span class="sd">    - a format</span>
+
+<span class="sd">    Typical values for the regular expression would be as simple as a single group</span>
+<span class="sd">    to extract the shot name, e.g. ``^(\w+)_.+$``</span>
+<span class="sd">    or more advanced regular expression with named groups to extract additional</span>
+<span class="sd">    information, e.g. ``(?P&lt;shot_name&gt;\w+)_(?P&lt;type&gt;\w\w\d\d)_(?P&lt;version&gt;[V,v]\d+)$``</span>
+
+<span class="sd">    :param edit: An Edit instance.</span>
+<span class="sd">    :param logger: A standard logger.</span>
+<span class="sd">    :param shot_regexp: A regular expression to extract extra information from the</span>
+<span class="sd">                        edit name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Add our runtime attributes</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_tape</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_shot_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_clip_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_asc_sop</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_asc_sat</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_format</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># edit._version = None</span>
+    <span class="c1"># Treat all comments</span>
+    <span class="k">for</span> <span class="n">comment</span> <span class="ow">in</span> <span class="n">edit</span><span class="o">.</span><span class="n">comments</span><span class="p">:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">_COMMENT_REGEXP</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+            <span class="n">comment_type</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Found in comments [</span><span class="si">%s</span><span class="s2">]: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">comment_type</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;LOC&quot;</span><span class="p">:</span>
+                <span class="n">tokens</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;SOURCE FILE&quot;</span><span class="p">:</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_tape</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c1"># The clip name can either be explicitly called out with CLIP NAME or if we only</span>
+            <span class="c1"># have FROM CLIP NAME, then we use that. For transitions, we&#39;ll have FROM CLIP NAME</span>
+            <span class="c1"># and TO CLIP NAME in which case we want to use TO CLIP NAME.</span>
+            <span class="k">elif</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;CLIP NAME&quot;</span><span class="p">:</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_clip_name</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">elif</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;TO CLIP NAME&quot;</span><span class="p">:</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_clip_name</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">elif</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;FROM CLIP NAME&quot;</span><span class="p">:</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_clip_name</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">elif</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;ASC_SOP&quot;</span><span class="p">:</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_asc_sop</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">elif</span> <span class="n">comment_type</span> <span class="o">==</span> <span class="s2">&quot;ASC_SAT&quot;</span><span class="p">:</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_asc_sat</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="c1"># Extract a shot name</span>
+    <span class="c1"># Default assignment</span>
+    <span class="n">edit</span><span class="o">.</span><span class="n">_shot_name</span> <span class="o">=</span> <span class="n">edit</span><span class="o">.</span><span class="n">_name</span>
+    <span class="k">if</span> <span class="n">edit</span><span class="o">.</span><span class="n">_name</span> <span class="ow">and</span> <span class="n">shot_regexp</span><span class="p">:</span>
+        <span class="c1"># Support pre-compiled regexp or strings</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">shot_regexp</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">regexp</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">shot_regexp</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">regexp</span> <span class="o">=</span> <span class="n">shot_regexp</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Parsing </span><span class="si">%s</span><span class="s2"> with </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">edit</span><span class="o">.</span><span class="n">_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">regexp</span><span class="p">)))</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">regexp</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">edit</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Matched groups: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">groups</span><span class="p">()))</span>
+            <span class="k">if</span> <span class="n">regexp</span><span class="o">.</span><span class="n">groups</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># Only one capturing group, use it for the shot name</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_shot_name</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">grid</span> <span class="o">=</span> <span class="n">regexp</span><span class="o">.</span><span class="n">groupindex</span>
+                <span class="k">if</span> <span class="s2">&quot;shot_name&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">grid</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;No </span><span class="se">\&quot;</span><span class="s2">shot_name</span><span class="se">\&quot;</span><span class="s2"> named group in regular expression </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">regexp</span><span class="o">.</span><span class="n">pattern</span><span class="p">)</span>
+                <span class="n">edit</span><span class="o">.</span><span class="n">_shot_name</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;shot_name&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;type&quot;</span> <span class="ow">in</span> <span class="n">grid</span><span class="p">:</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;format&quot;</span> <span class="ow">in</span> <span class="n">grid</span><span class="p">:</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_format</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;format&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;version&quot;</span> <span class="ow">in</span> <span class="n">grid</span><span class="p">:</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EditEvent"><a class="viewcode-back" href="../../edl.html#edl.EditEvent">[docs]</a><span class="k">class</span> <span class="nc">EditEvent</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An entry, or event, or edit from an edit list</span>
+
+<span class="sd">    New attributes can be added at runtime, provided that they don&#39;t</span>
+<span class="sd">    clash with :class:`EditEvent` regular attributes, by just setting their value, e.g.</span>
+<span class="sd">    ``edit.my_own_attribute = &quot;awesome&quot;``</span>
+<span class="sd">    They then are accessible like other regular attributes, e.g.</span>
+<span class="sd">    ``print edit.my_own_attribute``</span>
+
+<span class="sd">    This implementation assume timecodes out are exclusive, meaning that a one</span>
+<span class="sd">    frame long record would be ``00:00:00:01 00:00:00:02`` ( not ``00:00:00:01`` )</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Our known attributes</span>
+    <span class="c1"># Every other attributes will go into the _meta_data dictionary</span>
+    <span class="n">__mine</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;_effects&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_comments&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_meta_data&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_retime&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_id&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_reel&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_channels&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_source_in&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_source_out&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_record_in&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_record_out&quot;</span>
+    <span class="p">]</span>
+    <span class="c1"># Protect accessors clashes by building a list of them</span>
+    <span class="c1"># from internal attributes</span>
+    <span class="n">__protected</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">__mine</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="nb">id</span>          <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">reel</span>        <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">channels</span>    <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">source_in</span>   <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">source_out</span>  <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">record_in</span>   <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">record_out</span>  <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">fps</span>         <span class="o">=</span> <span class="mi">24</span><span class="p">,</span>
+        <span class="n">drop_frame</span>  <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiate a new EditEvent</span>
+
+<span class="sd">        :param id: The edit id in a Edit Decision list, as an int.</span>
+<span class="sd">        :param reel: The reel for this edit as a str.</span>
+<span class="sd">        :param channels: Channels for this edit, video, audio, etc. as a str.</span>
+<span class="sd">        :param source_in: Timecode in for the source, as a string formatted as</span>
+<span class="sd">                          hh:mm:ss:ff for non-drop frame or hh:mm:ss;ff for drop frame.</span>
+<span class="sd">        :param source_out: Timecode out for the source, as a string formatted as</span>
+<span class="sd">                          hh:mm:ss:ff for non-drop frame or hh:mm:ss;ff for drop frame.</span>
+<span class="sd">        :param record_in: Timecode in for the recorder, as a string formatted as</span>
+<span class="sd">                          hh:mm:ss:ff for non-drop frame or hh:mm:ss;ff for drop frame.</span>
+<span class="sd">        :param record_out: Timecode out for the recorder, as a string formatted as</span>
+<span class="sd">                          hh:mm:ss:ff for non-drop frame or hh:mm:ss;ff for drop frame.</span>
+<span class="sd">        :param fps: Number of frames per second for this edit, as an int or float.</span>
+<span class="sd">        :param drop_frame: Boolean indicating whether this edit uses drop frame or not or None </span>
+<span class="sd">                           if it&#39;s not specified. Default is None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># If new attributes are added here, their name should be added to the</span>
+        <span class="c1"># __mine list as well, otherwise will end up in the meta data dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_effects</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_comments</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_data</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># A place holder where additional meta data can be stored</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_retime</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span> <span class="o">=</span> <span class="n">fps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="o">=</span> <span class="n">drop_frame</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reel</span> <span class="o">=</span> <span class="n">reel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span> <span class="o">=</span> <span class="n">channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_in</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">source_in</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="n">drop_frame</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_out</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">source_out</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="n">drop_frame</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_record_in</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">record_in</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="n">drop_frame</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_record_out</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">record_out</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="n">drop_frame</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the fps for this edit.</span>
+
+<span class="sd">        :returns: Frame rate setting used by this EditEvent as an int or float.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">drop_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the drop frame value for this edit.</span>
+
+<span class="sd">        :returns: Boolean indicating if this EditEvent is drop frame or not.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">channels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the channels for this edit.</span>
+
+<span class="sd">        :returns: String representing the channels in this EditEvent (eg. &quot;AV&quot;, &quot;V&quot;, etc.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the id for this edit.</span>
+
+<span class="sd">        :returns: Id of this EditEvent as an int.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">reel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the reel for this edit.</span>
+
+<span class="sd">        :returns: Reel for this EditEvent as a str.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reel</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">comments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the comments for this edit, as a list.</span>
+
+<span class="sd">        :returns: List of comment strings for this EditEvent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_comments</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">pure_comments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        An iterator over &quot;pure&quot; comments, that is comments which</span>
+<span class="sd">        do not contain known keywords.</span>
+
+<span class="sd">        :yields: Iterator for looping over pure (non-keyword) comments.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">comment</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_comments</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_COMMENT_REGEXP</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">comment</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">comment</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">timecodes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the source in, source out, record in, record out timecodes for this</span>
+<span class="sd">        edit as a tuple.</span>
+
+<span class="sd">        :returns: Tuple of timecodes for this EditEvent as </span>
+<span class="sd">                  ``(source_in, source_out, record_in, record_out)``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_source_in</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_source_out</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_in</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_out</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_in</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the source in timecode for this edit.</span>
+
+<span class="sd">        :returns: Timecode string representing the source in for this EditEvent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_in</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_out</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the source out timecode for this edit.</span>
+
+<span class="sd">        :returns: Timecode string representing the source out for this EditEvent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_out</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_duration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the source duration, in frames.</span>
+
+<span class="sd">        :returns: Int representing the source duration in frames.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Timecode out are exclusive, e.g.</span>
+        <span class="c1"># 00:00:00:01 -&gt; 00:00:00:02 is only one frame long</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_out</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_in</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">record_in</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the record in timecode for this edit.</span>
+
+<span class="sd">        :returns: Timecode string representing the record in for this EditEvent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_record_in</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">record_out</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the record out timecode for this edit.</span>
+
+<span class="sd">        :returns: Timecode string representing the record out for this EditEvent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_record_out</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">record_duration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the record duration, in frames.</span>
+
+<span class="sd">        :returns: Int representing the record duration in frames.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Timecode out are exclusive, e.g.</span>
+        <span class="c1"># 00:00:00:01 -&gt; 00:00:00:02 is only one frame long</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_record_out</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_record_in</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">has_effects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return ``True`` if this :class:`EditEvent` has some effect(s).</span>
+
+<span class="sd">        :returns: Boolean indicating whether this EditEvent has effects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_effects</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EditEvent.add_effect"><a class="viewcode-back" href="../../edl.html#edl.EditEvent.add_effect">[docs]</a>    <span class="k">def</span> <span class="nf">add_effect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tokens</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For now, just register the effect line as a string and append it to the </span>
+<span class="sd">        list of effects for this EditEvent.</span>
+<span class="sd">        </span>
+<span class="sd">        Later we might want to parse the tokens, and store some actual</span>
+<span class="sd">        effects value on this edit.</span>
+
+<span class="sd">        :param tokens: List of tokens for the effect.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_effects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="EditEvent.add_comments"><a class="viewcode-back" href="../../edl.html#edl.EditEvent.add_comments">[docs]</a>    <span class="k">def</span> <span class="nf">add_comments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comments</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Associate a comment line to this edit.</span>
+
+<span class="sd">        :param comments: Comment string to append to the list of comments for this</span>
+<span class="sd">                         EditEvent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_comments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">comments</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">has_retime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return ``True`` if this edit has some retime.</span>
+
+<span class="sd">        :returns: Boolean indicating whether this EditEvent has a retime.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_retime</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EditEvent.add_retime"><a class="viewcode-back" href="../../edl.html#edl.EditEvent.add_retime">[docs]</a>    <span class="k">def</span> <span class="nf">add_retime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tokens</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For now, just register the retime line as a string and append it to the </span>
+<span class="sd">        list of retimes for this EditEvent.</span>
+
+<span class="sd">        Later we might want to parse the tokens, and store some actual</span>
+<span class="sd">        retime values.</span>
+
+<span class="sd">        :param tokens: List of tokens for the retime. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_retime</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        String representation for this :class:`EditEvent`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%03d</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reel</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">,</span>
+            <span class="s2">&quot;C&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_in</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_out</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_record_in</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_record_out</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Allow new attributes to be added on the fly, e.g. when parsing a file</span>
+<span class="sd">        with a visitor.</span>
+
+<span class="sd">        :param attr_name: Name of the attribute that needs setting.</span>
+<span class="sd">        :param value: The value the attribute should take.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__protected</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;EditEvent </span><span class="si">%s</span><span class="s2"> attribute can&#39;t be redefined&quot;</span> <span class="o">%</span> <span class="n">attr_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mine</span><span class="p">:</span>
+            <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_meta_data</span><span class="p">[</span><span class="n">attr_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve runtime attributes from meta_data dictionary.</span>
+
+<span class="sd">        :param attr_name: An attribute name.</span>
+<span class="sd">        :return: The value for the given attribute name.</span>
+<span class="sd">        :raise: ``AttributeError`` if the attribute can&#39;t be found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta_data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta_data</span><span class="p">[</span><span class="n">attr_name</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;EditEvent has no attribute </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">attr_name</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EditList"><a class="viewcode-back" href="../../edl.html#edl.EditList">[docs]</a><span class="k">class</span> <span class="nc">EditList</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An Edit Decision List.</span>
+
+<span class="sd">    Typical use of EditList could look like this::</span>
+
+<span class="sd">        # Define a visitor to extract some extra information from comments or locators.</span>
+<span class="sd">        def edit_parser(edit):</span>
+<span class="sd">            # New attributes can be added on the fly.</span>
+<span class="sd">            if edit.id % 2:</span>
+<span class="sd">                edit.is_even = False</span>
+<span class="sd">            else:</span>
+<span class="sd">                edit.is_even = True</span>
+
+<span class="sd">        edl = EditList(file_path=&quot;/tmp/my_edl.edl&quot;, visitor=edit_parser)</span>
+<span class="sd">        for edit in edl.edits:</span>
+<span class="sd">            print str(edit)</span>
+<span class="sd">            # Added attributes are reachable like regular ones.</span>
+<span class="sd">            print edit.is_even</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">__logger</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">visitor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiate a new Edit Decision List.</span>
+
+<span class="sd">        :param fps: Number of frames per second for this EditList as an int or float.</span>
+<span class="sd">        :param file_path: Full path to a file to read.</span>
+<span class="sd">        :param visitor: A callable which will be called on every edit and should</span>
+<span class="sd">                        accept as input an :class:`EditEvent` and a logger.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_title</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_edits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span> <span class="o">=</span> <span class="n">fps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_has_transitions</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">file_path</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ext</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;.edl&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="s2">&quot;Can&#39;t read </span><span class="si">%s</span><span class="s2">: don&#39;t know how to read files with </span><span class="si">%s</span><span class="s2"> extension&quot;</span><span class="p">,</span>
+                    <span class="n">file_path</span><span class="p">,</span>
+                    <span class="n">ext</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">read_cmx_edl</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="n">visitor</span><span class="o">=</span><span class="n">visitor</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="EditList.set_logger"><a class="viewcode-back" href="../../edl.html#edl.EditList.set_logger">[docs]</a>    <span class="k">def</span> <span class="nf">set_logger</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Allow to use another logger than the default one provided in this</span>
+<span class="sd">        framework.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">__logger</span> <span class="o">=</span> <span class="n">logger</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">has_transitions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return ``True`` if this EditList contains events with transitions.</span>
+
+<span class="sd">        :returns: Boolean indicating if this EditList contains events with transitions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_transitions</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">drop_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return ``True`` if this EditList is drop frame.</span>
+
+<span class="sd">        :returns: Boolean indicating if this EditList uses drop frame or not.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">edits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of all edit events in this :class:`EditList`.</span>
+
+<span class="sd">        :returns: List of edit event objects in this edit list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_edits</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return this :class:`EditList`&#39;s title</span>
+
+<span class="sd">        :returns: Title of this edit list as a str.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_title</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the number of frame per seconds used by this :class:`EditList`.</span>
+
+<span class="sd">        :returns: Frame rate setting used by this edit list as an int or float.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span>
+
+<div class="viewcode-block" id="EditList.read_cmx_edl"><a class="viewcode-back" href="../../edl.html#edl.EditList.read_cmx_edl">[docs]</a>    <span class="k">def</span> <span class="nf">read_cmx_edl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">visitor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the given edl file, extract a list of versions that need to be</span>
+<span class="sd">        created.</span>
+
+<span class="sd">        .. seealso::</span>
+<span class="sd">            - http://xmil.biz/EDL-X/CMX3600.pdf</span>
+<span class="sd">            - http://www.scottsimmons.tv/blog/2006/10/12/how-to-read-an-edl/</span>
+<span class="sd">            - http://www.edlmax.com/maxguide.html</span>
+
+<span class="sd">        :param path: Full path to a cmx compatible file to read.</span>
+<span class="sd">        :param fps: Number of frames per-second for this :class:`EditList` as an int or float.</span>
+<span class="sd">        :param visitor: A callable which will be called on every edit and should</span>
+<span class="sd">                        accept as input an :class:`EditEvent` and a logger.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Reset default values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_title</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_edits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># And read the file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Parsing EDL </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rU&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">handle</span><span class="p">:</span>
+            <span class="n">edit</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">id_offset</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">handle</span><span class="p">:</span>
+                    <span class="c1"># Not sure why we have to do that ...</span>
+                    <span class="c1"># Some crappy Windows thing ?</span>
+                    <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\x1a</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot; </span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Treating: [</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">line</span><span class="p">)</span>
+                    <span class="n">line_tokens</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;TITLE:&quot;</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_title</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                    <span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;FCM:&quot;</span><span class="p">):</span>
+                        <span class="c1"># Frame Code Mode: Can be DROP FRAME or NON DROP FRAME. If it&#39;s </span>
+                        <span class="c1"># something else, raise an error.</span>
+                        <span class="k">if</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;DROP&quot;</span> <span class="ow">and</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;FRAME&quot;</span><span class="p">:</span>
+                            <span class="n">drop_frame</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">elif</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;NON-DROP&quot;</span> <span class="ow">and</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;FRAME&quot;</span><span class="p">:</span>
+                            <span class="n">drop_frame</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="n">BadFCMError</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+                        <span class="c1"># Only set the EDL drop frame value once.</span>
+                        <span class="c1"># Some EDLS contain additional FCM notes for transitions. It&#39;s </span>
+                        <span class="c1"># unclear if these can conflict with the EDL setting or not but for</span>
+                        <span class="c1"># now we will ignore it if that happens and issue a warning. </span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="o">=</span> <span class="n">drop_frame</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="o">!=</span> <span class="n">drop_frame</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                    <span class="s2">&quot;Found an FCM note </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> that conflicts with the EDL&#39;s &quot;</span>
+                                    <span class="s2">&quot;drop frame setting. Only one FCM note is supported for &quot;</span>
+                                    <span class="s2">&quot;setting the drop frame mode for the entire EDL. Any &quot;</span>
+                                    <span class="s2">&quot;additional FCM notes will be ignored.&quot;</span>
+                                    <span class="o">%</span> <span class="n">line</span>
+                                <span class="p">)</span>
+                    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;BL&quot;</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">BadBLError</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+                    <span class="k">elif</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;M2&quot;</span><span class="p">:</span>  <span class="c1"># Retime</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">edit</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                                <span class="s2">&quot;Found unexpected line&quot;</span>
+                            <span class="p">)</span>
+                        <span class="n">edit</span><span class="o">.</span><span class="n">add_retime</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                        <span class="n">media_type</span> <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                        <span class="n">event_type</span> <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+                        <span class="c1"># If we have an audio track, ignore it and adjust the</span>
+                        <span class="c1"># event id numbering to reflect that.</span>
+                        <span class="k">if</span> <span class="n">media_type</span> <span class="o">==</span> <span class="s2">&quot;AA&quot;</span><span class="p">:</span>
+                            <span class="n">id_offset</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="k">continue</span>
+                        <span class="nb">id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">id_offset</span>
+                        <span class="c1"># New edit</span>
+                        <span class="c1"># Time to call the visitor (if any) with the previous</span>
+                        <span class="c1"># edit (if any)</span>
+                        <span class="k">if</span> <span class="n">edit</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">edit</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="nb">id</span><span class="p">:</span>
+                                <span class="c1"># Duplicated id, it is an effect</span>
+                                <span class="n">edit</span><span class="o">.</span><span class="n">add_effect</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">)</span>
+                                <span class="k">continue</span>
+                            <span class="k">if</span> <span class="n">visitor</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Visiting: [</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">edit</span><span class="p">)</span>
+                                <span class="n">visitor</span><span class="p">(</span><span class="n">edit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="p">)</span>
+                        <span class="c1"># Include our event if it&#39;s a Cut type (C) and not</span>
+                        <span class="c1"># an audio track (AA).</span>
+                        <span class="k">if</span> <span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;C&quot;</span> <span class="ow">and</span> <span class="n">media_type</span> <span class="o">!=</span> <span class="s2">&quot;AA&quot;</span><span class="p">:</span>  <span class="c1"># cut</span>
+                            <span class="c1"># Number of tokens can vary in the middle</span>
+                            <span class="c1"># so tokens at the end of the line are indexed with</span>
+                            <span class="c1"># negative indexes</span>
+                            <span class="n">edit</span> <span class="o">=</span> <span class="n">EditEvent</span><span class="p">(</span>
+                                <span class="n">fps</span>         <span class="o">=</span> <span class="n">fps</span><span class="p">,</span>
+                                <span class="nb">id</span>          <span class="o">=</span> <span class="nb">id</span><span class="p">,</span>
+                                <span class="n">reel</span>        <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                <span class="n">channels</span>    <span class="o">=</span> <span class="n">media_type</span><span class="p">,</span>
+                                <span class="n">source_in</span>   <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">],</span>
+                                <span class="n">source_out</span>  <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">],</span>
+                                <span class="n">record_in</span>   <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span>
+                                <span class="n">record_out</span>  <span class="o">=</span> <span class="n">line_tokens</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                            <span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">edit</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">edit</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                                    <span class="s2">&quot;Found unexpected effect&quot;</span>
+                                <span class="p">)</span>
+                            <span class="n">edit</span><span class="o">.</span><span class="n">add_effect</span><span class="p">(</span><span class="n">line_tokens</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># A comment</span>
+                        <span class="k">if</span> <span class="n">edit</span><span class="p">:</span>
+                            <span class="n">edit</span><span class="o">.</span><span class="n">add_comments</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="c1"># Call the visitor (if any) with the last edit (if any)</span>
+                <span class="k">if</span> <span class="n">edit</span> <span class="ow">and</span> <span class="n">visitor</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Visiting: [</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">edit</span><span class="p">)</span>
+                    <span class="n">visitor</span><span class="p">(</span><span class="n">edit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># Catch the exception so we can add the current line contents</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="se">\n\n</span><span class="s2">Error reported while parsing </span><span class="si">%s</span><span class="s2"> at line:</span><span class="se">\n\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">path</span><span class="p">,</span> <span class="n">line</span><span class="p">)]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+                <span class="k">raise</span>
+        <span class="c1"># Once we have our edits list, we can loop through it and adjust any</span>
+        <span class="c1"># timecode we like to account for effects (like transitions).</span>
+        <span class="k">for</span> <span class="n">count_edits</span><span class="p">,</span> <span class="n">edit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">):</span>
+            <span class="n">prev</span> <span class="o">=</span> <span class="n">count_edits</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="k">for</span> <span class="n">effect</span> <span class="ow">in</span> <span class="n">edit</span><span class="o">.</span><span class="n">_effects</span><span class="p">:</span>
+                <span class="n">effect_tokens</span> <span class="o">=</span> <span class="n">effect</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="c1"># Modify some timecode if we have a cross-dissolve.</span>
+                <span class="k">if</span> <span class="n">effect_tokens</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;D&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_has_transitions</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="c1"># We don&#39;t want to go negative here, else we&#39;ll grab edits</span>
+                    <span class="c1"># from the end of the list.</span>
+                    <span class="k">if</span> <span class="n">prev</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                        <span class="c1"># Add the transition duration to the previous edit&#39;s source out.</span>
+                        <span class="n">trans_duration</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">effect_tokens</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">edit</span><span class="o">.</span><span class="n">fps</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">[</span><span class="n">prev</span><span class="p">]</span><span class="o">.</span><span class="n">_source_out</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">[</span><span class="n">prev</span><span class="p">]</span><span class="o">.</span><span class="n">_source_out</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">+</span> <span class="n">trans_duration</span><span class="p">),</span>
+                            <span class="n">fps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">[</span><span class="n">prev</span><span class="p">]</span><span class="o">.</span><span class="n">fps</span><span class="p">,</span>
+                            <span class="n">drop_frame</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">[</span><span class="n">prev</span><span class="p">]</span><span class="o">.</span><span class="n">_record_out</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">[</span><span class="n">prev</span><span class="p">]</span><span class="o">.</span><span class="n">_record_out</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">+</span> <span class="n">trans_duration</span><span class="p">),</span>
+                            <span class="n">fps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_edits</span><span class="p">[</span><span class="n">prev</span><span class="p">]</span><span class="o">.</span><span class="n">fps</span><span class="p">,</span>
+                            <span class="n">drop_frame</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span>
+                        <span class="p">)</span>
+                    <span class="c1"># Take the values from the Dissolve effect for the current edit.</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_source_in</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">effect_tokens</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">edit</span><span class="o">.</span><span class="n">fps</span><span class="p">)</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_source_out</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">effect_tokens</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span> <span class="n">edit</span><span class="o">.</span><span class="n">fps</span><span class="p">)</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_record_in</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">effect_tokens</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="n">edit</span><span class="o">.</span><span class="n">fps</span><span class="p">)</span>
+                    <span class="n">edit</span><span class="o">.</span><span class="n">_record_out</span> <span class="o">=</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">effect_tokens</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span> <span class="n">edit</span><span class="o">.</span><span class="n">fps</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Autodesk.
+
+    </p>
+  </div>
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+
+
+
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'v1.4.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+
+
+
+
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-2114792-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+</body>
+</html>

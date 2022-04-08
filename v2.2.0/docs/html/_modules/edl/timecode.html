@@ -1,0 +1,797 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>edl.timecode &mdash; tk-framework-editorial v1.4.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+
+
+
+
+    <link rel="top" title="tk-framework-editorial v1.4.0 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/>
+
+
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+
+  <div class="wy-grid-for-nav">
+
+
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+
+    <a href='http://developer.shotgridsoftware.com'>
+
+        <img style='width: 191px;
+                height: 60px;
+                margin: 2px;
+                border-radius: 0px;
+                padding: 0px;'
+            src='../../_static/logo@2x.png'/>
+
+    </a>
+
+
+
+            <a href="../../index.html" class="icon icon-home"> tk-framework-editorial
+
+
+
+          </a>
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+
+
+
+
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../edl.html">EDL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../timecode.html">Timecode</a></li>
+</ul>
+
+
+
+
+    <div style='margin-top: 50px;
+                margin-left: 10px;
+                margin-right: 10px;
+                padding: 10px;
+                color: #b3b3b3;
+                font-size: 70%;
+                border-radius: 3px;
+                background-color: #444;
+                line-height: 18px;
+                '>
+    <style>
+        a.custom_post_menu { display: inline;
+                             padding: 0px;
+                             text-decoration: underline; }
+    </style>
+
+    <b>tk-framework-editorial</b> v1.4.0.<br>
+
+        This documentation is part of the ShotGrid Pipeline Toolkit.
+
+    For more information, please visit
+    <a class=custom_post_menu href='https://support.shotgunsoftware.com/home'>ShotGrid Support</a>.
+    The code associated with this documentation can be found
+    <a class=custom_post_menu href='https://github.com/shotgunsoftware/tk-framework-editorial'>here</a>.
+
+    </div>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">tk-framework-editorial</a>
+
+      </nav>
+
+
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+
+      <li>edl.timecode</li>
+
+
+      <li class="wy-breadcrumbs-aside">
+
+
+
+      </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <h1>Source code for edl.timecode</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2016 Autodesk, Inc. All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Use of this software is subject to the terms of the Autodesk license agreement</span>
+<span class="c1"># provided at the time of installation or download, or which otherwise accompanies</span>
+<span class="c1"># this software in either electronic or hard copy form.</span>
+<span class="c1">#</span>
+<span class="kn">import</span> <span class="nn">decimal</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="k">import</span> <span class="n">BadFrameRateError</span><span class="p">,</span> <span class="n">BadDropFrameError</span>
+
+
+<span class="c1"># FYI: Number of drop frames per minute is 6.6666...% of framerate rounded to nearest integer.</span>
+<span class="c1"># This is convention from other code. While not an absolute exact science, it is exact</span>
+<span class="c1"># enough for all of the frame rates in use today. This comes out to 2 for 29.97 and 4 for 59.94.</span>
+<span class="c1"># In case we need to calculate this more dynamically in the future...</span>
+
+<span class="c1"># Define constants for helping drop frame calculations:</span>
+<span class="c1"># - count: The number of frames to drop per-minute.</span>
+<span class="c1"># - fps_int: The frame rate (fps) rounded to the nearest int.</span>
+<span class="c1"># - fp10m: Frames per 10 minutes (fps_int * 60 seconds * 10 minutes - (9 minutes * count))</span>
+<span class="n">DROP_FRAME</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mf">29.97</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;fps_int&quot;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="s2">&quot;fp10m&quot;</span><span class="p">:</span> <span class="mi">17982</span><span class="p">},</span>
+    <span class="mf">59.94</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;fps_int&quot;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s2">&quot;fp10m&quot;</span><span class="p">:</span> <span class="mi">35964</span><span class="p">},</span>
+<span class="p">}</span>
+<span class="n">VALID_DROP_FRAME_FPS</span> <span class="o">=</span> <span class="n">DROP_FRAME</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+<span class="c1"># Our official delimiters.</span>
+<span class="n">DROP_FRAME_DELIMITER</span> <span class="o">=</span> <span class="s2">&quot;;&quot;</span>
+<span class="n">NON_DROP_FRAME_DELIMITER</span> <span class="o">=</span> <span class="s2">&quot;:&quot;</span>
+
+<span class="n">VALID_DROP_FRAME_DELIMITERS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;;&quot;</span><span class="p">,</span> <span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">]</span>
+<span class="n">VALID_NON_DROP_FRAME_DELIMITERS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;:&quot;</span><span class="p">]</span>
+<span class="n">VALID_TIMECODE_DELIMITERS</span> <span class="o">=</span> <span class="n">VALID_DROP_FRAME_DELIMITERS</span> <span class="o">+</span> <span class="n">VALID_NON_DROP_FRAME_DELIMITERS</span>
+
+
+<span class="c1"># Some helpers to convert timecodes to frames, back and forth.</span>
+<div class="viewcode-block" id="frame_from_timecode"><a class="viewcode-back" href="../../timecode.html#edl.frame_from_timecode">[docs]</a><span class="k">def</span> <span class="nf">frame_from_timecode</span><span class="p">(</span><span class="n">timecode</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the frame number for the given timecode.</span>
+
+<span class="sd">    :param timecode: A timecode as a string (formatted as ``hh:mm:ss:ff`` for non-drop frame </span>
+<span class="sd">                     or ``hh:mm:ss;ff`` for drop frame) or as a (hours, minutes, seconds, frames) </span>
+<span class="sd">                     tuple.</span>
+<span class="sd">    :param fps: Number of frames per second as an int or float. Default is 24.</span>
+<span class="sd">    :param drop_frame: Boolean determining whether timecode should use drop frame or not. None if</span>
+<span class="sd">                       this value should be determined by the timecode&#39;s delimiter notation. </span>
+<span class="sd">                       Default is None.</span>
+<span class="sd">    :return: Corresponding frame number, as an int.</span>
+<span class="sd">    :raises: NotImplementedError if ``drop_frame`` is ``True`` and the fps value is unsupported </span>
+<span class="sd">             for drop frame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timecode</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># This supports timecode up to 999:59:59:59.</span>
+        <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">second</span><span class="p">,</span> <span class="n">frame</span> <span class="o">=</span> <span class="n">Timecode</span><span class="o">.</span><span class="n">parse_timecode</span><span class="p">(</span><span class="n">timecode</span><span class="p">)</span>
+        <span class="n">tc_drop_frame</span> <span class="o">=</span> <span class="n">_compute_drop_frame_setting</span><span class="p">(</span><span class="n">timecode</span><span class="p">,</span> <span class="n">drop_frame</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">tc_drop_frame</span> <span class="ow">and</span> <span class="n">fps</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_DROP_FRAME_FPS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;Invalid fps setting </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">. Time code calculation logic only supports drop frame &quot;</span>
+                <span class="s2">&quot;calculations for the following fps values: </span><span class="si">%s</span><span class="s2">.&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">fps</span><span class="p">,</span> <span class="n">VALID_DROP_FRAME_FPS</span><span class="p">)</span>
+            <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>  <span class="c1"># Assume a 4 elements tuple</span>
+        <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">second</span><span class="p">,</span> <span class="n">frame</span> <span class="o">=</span> <span class="n">timecode</span>
+        <span class="c1"># Set drop frame solely based on the passed in drop_frame parameter.</span>
+        <span class="k">if</span> <span class="n">drop_frame</span><span class="p">:</span>
+            <span class="n">tc_drop_frame</span> <span class="o">=</span> <span class="n">drop_frame</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tc_drop_frame</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">hours</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span>
+    <span class="n">minutes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span>
+    <span class="n">seconds</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">second</span><span class="p">)</span>
+    <span class="n">frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">tc_drop_frame</span><span class="p">:</span>
+        <span class="n">drop_frames_per_min</span> <span class="o">=</span> <span class="n">DROP_FRAME</span><span class="p">[</span><span class="n">fps</span><span class="p">][</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">drop_frames_per_min</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># We don&#39;t need the exact framerate anymore if we&#39;re using drop frame, we just need it</span>
+    <span class="c1"># rounded to nearest integer. Non-drop frame will return the same value.</span>
+    <span class="n">fps_int</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fps</span><span class="p">))</span>
+
+    <span class="c1"># Number of frames per hour (non-drop)</span>
+    <span class="n">frames_per_hour</span> <span class="o">=</span> <span class="n">fps_int</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span>
+    <span class="c1"># Number of frames per minute (non-drop)</span>
+    <span class="n">frames_per_minute</span> <span class="o">=</span> <span class="n">fps_int</span> <span class="o">*</span> <span class="mi">60</span>
+    <span class="c1"># Total number of minutes (non-drop)</span>
+    <span class="n">total_minutes</span> <span class="o">=</span> <span class="p">(</span><span class="mi">60</span> <span class="o">*</span> <span class="n">hours</span><span class="p">)</span> <span class="o">+</span> <span class="n">minutes</span>
+
+    <span class="c1"># Put it all together.</span>
+    <span class="n">frame_number</span> <span class="o">=</span> <span class="p">(</span><span class="n">frames_per_hour</span> <span class="o">*</span> <span class="n">hours</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">frames_per_minute</span> <span class="o">*</span> <span class="n">minutes</span><span class="p">)</span> <span class="o">+</span> \
+        <span class="p">(</span><span class="n">fps_int</span> <span class="o">*</span> <span class="n">seconds</span><span class="p">)</span> <span class="o">+</span> <span class="n">frames</span>
+
+    <span class="c1"># If we&#39;re using drop frame, calculate the total frames to drop by multiplying the number of</span>
+    <span class="c1"># frames we drop each minute, by the total number of minutes MINUS the number of 10-minute</span>
+    <span class="c1"># intervals.</span>
+    <span class="n">frames_to_drop</span> <span class="o">=</span> <span class="n">drop_frames_per_min</span> <span class="o">*</span> <span class="p">(</span><span class="n">total_minutes</span> <span class="o">-</span> <span class="p">(</span><span class="n">total_minutes</span> <span class="o">/</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="c1"># Subtract any frames to drop to get our final frame number.</span>
+    <span class="n">frame_number</span> <span class="o">-=</span> <span class="n">frames_to_drop</span>
+
+    <span class="k">return</span> <span class="n">frame_number</span></div>
+
+
+<div class="viewcode-block" id="timecode_from_frame"><a class="viewcode-back" href="../../timecode.html#edl.timecode_from_frame">[docs]</a><span class="k">def</span> <span class="nf">timecode_from_frame</span><span class="p">(</span><span class="n">frame_number</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the timecode corresponding to the given frame.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        We don&#39;t need to use the :mod:`decimal` module here because frame/timecode calculations</span>
+<span class="sd">        are not exact (there is no such thing as a fractional frame). </span>
+
+<span class="sd">        When using a float frame rate (fps) calculations of frames and timecode are not</span>
+<span class="sd">        technically exact, and will cause time drift away from &quot;wall clock&quot; time. But</span>
+<span class="sd">        this is still correct. Drop frame was created to help mitigate this and it attempts </span>
+<span class="sd">        to correct the drift by skipping frame numbers at certain intervals. However, it&#39;s </span>
+<span class="sd">        still technically not exact and will usually be a fraction of time off. But it&#39;s </span>
+<span class="sd">        exact enough for the editorial world (and is therefore &quot;correct&quot;).</span>
+
+<span class="sd">    :param frame_number: A frame number, as an int.</span>
+<span class="sd">    :param fps: Number of frames per seconds, as an int or float. Default is 24.</span>
+<span class="sd">    :param drop_frame: Boolean determining whether timecode should use drop frame or not. Default</span>
+<span class="sd">                       is False.</span>
+<span class="sd">    :returns: Timecode as string, e.g. ``01:02:12:32`` (non-drop frame) or</span>
+<span class="sd">              ``01:02:12;32`` (drop frame).</span>
+<span class="sd">    :raises: NotImplementedError if drop_frame is True and the fps value is unsupported for drop</span>
+<span class="sd">             frame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">drop_frame</span> <span class="ow">and</span> <span class="n">fps</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_DROP_FRAME_FPS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;Invalid fps setting </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">. Time code calculation logic only supports drop frame &quot;</span>
+            <span class="s2">&quot;calculations for the following fps values: </span><span class="si">%s</span><span class="s2">.&quot;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">fps</span><span class="p">,</span> <span class="n">VALID_DROP_FRAME_FPS</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">drop_frame</span><span class="p">:</span>
+        <span class="n">fps_int</span> <span class="o">=</span> <span class="n">DROP_FRAME</span><span class="p">[</span><span class="n">fps</span><span class="p">][</span><span class="s2">&quot;fps_int&quot;</span><span class="p">]</span>
+        <span class="c1"># drop-frame-mode</span>
+        <span class="c1"># for 30 fps jump 2 frames every minute but not every 10 minutes</span>
+        <span class="c1"># for 60 fps jump 4 frames every minute but not every 10 minutes</span>
+        <span class="c1">#</span>
+        <span class="c1"># D = Drop Frame</span>
+        <span class="c1"># ND = Non-Drop Frame</span>
+        <span class="c1">#</span>
+        <span class="c1"># Example at the one minute / 30-sec mark:</span>
+        <span class="c1">#             30 fps                         60 fps</span>
+        <span class="c1"># -------------------------------------------------------------------------</span>
+        <span class="c1"># frame: 1798 ND: 00:00:59:28 D: 00:00:59;28 ND: 00:00:29:58 D: 00:00:29;58</span>
+        <span class="c1"># frame: 1799 ND: 00:00:59:29 D: 00:00:59;29 ND: 00:00:29:59 D: 00:00:29;59</span>
+        <span class="c1"># frame: 1800 ND: 00:01:00:00 D: 00:01:00;02 ND: 00:00:30:00 D: 00:00:30;00</span>
+        <span class="c1"># frame: 1801 ND: 00:01:00:01 D: 00:01:00;03 ND: 00:00:30:01 D: 00:00:30;01</span>
+        <span class="c1"># frame: 1802 ND: 00:01:00:02 D: 00:01:00;04 ND: 00:00:30:02 D: 00:00:30;02</span>
+        <span class="c1">#</span>
+        <span class="c1"># example at the two minute / one minute mark:</span>
+        <span class="c1">#</span>
+        <span class="c1"># frame: 3598 ND: 00:01:59:28 D: 00:01:59;28 ND: 00:00:59:58 D: 00:00:59:58</span>
+        <span class="c1"># frame: 3599 ND: 00:01:59:29 D: 00:01:59;29 ND: 00:00:00:59 D: 00:00:59:59</span>
+        <span class="c1"># frame: 3600 ND: 00:02:00:00 D: 00:02:00;02 ND: 00:01:00:00 D: 00:01:00;04</span>
+        <span class="c1"># frame: 3601 ND: 00:02:00:01 D: 00:02:00;03 ND: 00:01:00:01 D: 00:01:00;05</span>
+        <span class="c1"># frame: 3602 ND: 00:02:00:02 D: 00:02:00;04 ND: 00:01:00:02 D: 00:01:00;06</span>
+        <span class="c1">#</span>
+        <span class="c1"># examples at the ten minute / 5 minute marks:</span>
+        <span class="c1">#</span>
+        <span class="c1"># frame: 17980 ND: 00:09:59:10 D: 00:09:59;28  ND: 00:04:59:40 D: 00:04:59;56</span>
+        <span class="c1"># frame: 17981 ND: 00:09:59:11 D: 00:09:59;29  ND: 00:04:59:41 D: 00:04:59;57</span>
+        <span class="c1"># frame: 17982 ND: 00:09:59:12 D: 00:10:00;00  ND: 00:04:59:42 D: 00:04:59;58</span>
+        <span class="c1"># frame: 17983 ND: 00:09:59:13 D: 00:10:00;01  ND: 00:04:59:43 D: 00:04:59;59</span>
+        <span class="c1"># frame: 17984 ND: 00:09:59:14 D: 00:10:00;02  ND: 00:04:59:44 D: 00:05:00;04</span>
+
+        <span class="c1"># frame: 17998 ND: 00:09:59:58 D: 00:10:00;16  ND: 00:04:59:58 D: 00:05:00;18</span>
+        <span class="c1"># frame: 17999 ND: 00:09:59:59 D: 00:10:00;17  ND: 00:04:59:59 D: 00:05:00;19</span>
+        <span class="c1"># frame: 18000 ND: 00:10:00:00 D: 00:10:00;18  ND: 00:05:00:00 D: 00:05:00;20</span>
+        <span class="c1"># frame: 18001 ND: 00:10:00:01 D: 00:10:00;19  ND: 00:05:00:01 D: 00:05:00;21</span>
+        <span class="c1"># frame: 18002 ND: 00:10:00:02 D: 00:10:00;20  ND: 00:05:00:02 D: 00:05:00;22</span>
+
+        <span class="c1"># 30fps: 2</span>
+        <span class="c1"># 60fps: 4</span>
+        <span class="n">drop_frames_per_min</span> <span class="o">=</span> <span class="n">DROP_FRAME</span><span class="p">[</span><span class="n">fps</span><span class="p">][</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Number of NON-DROP frames per ten minutes</span>
+        <span class="c1"># 30fps: 30 * 60 * 10 = 17982</span>
+        <span class="c1"># 60fps: 60 * 60 * 10 = 35964</span>
+        <span class="n">frames_per_10_mins</span> <span class="o">=</span> <span class="n">DROP_FRAME</span><span class="p">[</span><span class="n">fps</span><span class="p">][</span><span class="s2">&quot;fp10m&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Total number of DROP frames per minute</span>
+        <span class="c1"># fps * 60 (seconds) - (# drop frames per minute)</span>
+        <span class="c1"># 30fps: 30 * 60 - 2 = 1798</span>
+        <span class="c1"># 60fps: 60 * 60 - 4 = 3596</span>
+        <span class="n">frames_per_min_drop</span> <span class="o">=</span> <span class="p">(</span><span class="n">fps_int</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span> <span class="o">-</span> <span class="n">drop_frames_per_min</span>
+
+        <span class="c1"># Number of frames to add per 10 minute chunk</span>
+        <span class="c1"># (# frames to drop per minute) * 9 (9 minutes since every 10th minute we *don&#39;t* drop)</span>
+        <span class="c1"># 30fps: 2 * 9 = 18</span>
+        <span class="c1"># 60fps: 4 * 9 = 36</span>
+        <span class="n">additional_frames_per_10m</span> <span class="o">=</span> <span class="n">drop_frames_per_min</span> <span class="o">*</span> <span class="mi">9</span>
+
+        <span class="c1"># number of frames to add per 1 minute chunk</span>
+        <span class="c1"># 30fps: 2</span>
+        <span class="c1"># 60fps: 4</span>
+        <span class="n">additional_frames_per_1m</span> <span class="o">=</span> <span class="n">drop_frames_per_min</span>
+
+        <span class="c1"># Number of 10-minute chunks of frames</span>
+        <span class="n">ten_minute_chunks</span> <span class="o">=</span> <span class="n">frame_number</span> <span class="o">/</span> <span class="n">frames_per_10_mins</span>
+        <span class="c1"># Remainder of frames after splitting into 10 minute chunks</span>
+        <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">frame_number</span> <span class="o">%</span> <span class="n">frames_per_10_mins</span>
+
+        <span class="k">if</span> <span class="n">remaining_frames</span> <span class="o">&gt;</span> <span class="n">drop_frames_per_min</span><span class="p">:</span>
+            <span class="n">add_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">additional_frames_per_10m</span> <span class="o">*</span> <span class="n">ten_minute_chunks</span><span class="p">)</span> <span class="o">+</span> \
+                <span class="p">(</span><span class="n">additional_frames_per_1m</span> <span class="o">*</span>
+                    <span class="p">((</span><span class="n">remaining_frames</span> <span class="o">-</span> <span class="n">drop_frames_per_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">frames_per_min_drop</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">add_frames</span> <span class="o">=</span> <span class="n">additional_frames_per_10m</span> <span class="o">*</span> <span class="n">ten_minute_chunks</span>
+
+        <span class="c1"># The final result!</span>
+        <span class="n">frame_number</span> <span class="o">+=</span> <span class="n">add_frames</span>
+
+        <span class="c1"># Drop frame time codes use a ; to delimit the frames by convention.</span>
+        <span class="n">frames_token</span> <span class="o">=</span> <span class="n">DROP_FRAME_DELIMITER</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Non-drop frame timecodes that are floats are simply rounded to their nearest integer </span>
+        <span class="c1"># for frame calculation. Since there can&#39;t be a fractional frame number and we&#39;re not</span>
+        <span class="c1"># dropping frames to compensate, the timecode will drift from wall clock time as expected.</span>
+        <span class="c1"># This is often the case in short-form media like commercials (&lt; 1 minute) since drop</span>
+        <span class="c1"># frame wouldn&#39;t ever come in to play anyway.</span>
+        <span class="n">fps_int</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fps</span><span class="p">))</span>
+        <span class="c1"># Non-drop frame time codes use a : to delimit the frames by convention.</span>
+        <span class="n">frames_token</span> <span class="o">=</span> <span class="n">NON_DROP_FRAME_DELIMITER</span>
+
+    <span class="c1"># Now split our frames into timecode.</span>
+    <span class="n">hours</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frame_number</span> <span class="o">/</span> <span class="p">(</span><span class="mi">3600</span> <span class="o">*</span> <span class="n">fps_int</span><span class="p">))</span>
+    <span class="n">minutes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frame_number</span> <span class="o">/</span> <span class="p">(</span><span class="mi">60</span> <span class="o">*</span> <span class="n">fps_int</span><span class="p">)</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">seconds</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frame_number</span> <span class="o">/</span> <span class="n">fps_int</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">frame_number</span> <span class="o">%</span> <span class="n">fps_int</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%02d</span><span class="s2">:</span><span class="si">%02d</span><span class="s2">:</span><span class="si">%02d%s%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">hours</span><span class="p">,</span> <span class="n">minutes</span><span class="p">,</span> <span class="n">seconds</span><span class="p">,</span> <span class="n">frames_token</span><span class="p">,</span> <span class="n">frames</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_compute_drop_frame_setting</span><span class="p">(</span><span class="n">timecode_str</span><span class="p">,</span> <span class="n">drop_frame</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the &quot;correct&quot; drop frame setting based on the timecode string and the</span>
+<span class="sd">    drop_frame parameter (if any).</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        While it&#39;s clear that timecodes with ; or , or . delimiters indicate drop frame, the absence </span>
+<span class="sd">        of them doesn&#39;t necessarily indicate non-drop frame. More specifically, when calling this </span>
+<span class="sd">        function, we may not want to require that the user always know to add the correct drop </span>
+<span class="sd">        frame delimiters in the timecode string. So we are only raising an error here if the </span>
+<span class="sd">        timecode indicates drop frame and the user has explicitly indicated non-drop frame.</span>
+
+<span class="sd">    :param timecode_str: A timecode as a string (eg. &quot;hh:mm:ss:ff&quot; for non-drop frame </span>
+<span class="sd">                         or &quot;hh:mm:ss;ff&quot; for drop frame).</span>
+<span class="sd">    :param drop_frame: Boolean indicating whether the user intends to use drop frame or not. None</span>
+<span class="sd">                       if the user did not pass in a drop_frame value explicitly indicating we</span>
+<span class="sd">                       should rely on the existence of drop frame notation in the timecode string.</span>
+
+<span class="sd">    :returns: Boolean indicating whether to use drop frame (True) or not (False).</span>
+<span class="sd">    :raises: BadDropFrameError if the drop_frame parameter is explicitly set to False but the</span>
+<span class="sd">             timecode string uses drop frame notation, indicating a conflict.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Infer drop frame setting from the timecode.</span>
+    <span class="n">tc_drop_frame</span> <span class="o">=</span> <span class="n">Timecode</span><span class="o">.</span><span class="n">str_is_drop_frame</span><span class="p">(</span><span class="n">timecode_str</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">drop_frame</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">drop_frame</span> <span class="ow">is</span> <span class="kc">False</span> <span class="ow">and</span> <span class="n">tc_drop_frame</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadDropFrameError</span><span class="p">(</span><span class="n">timecode_str</span><span class="p">,</span> <span class="n">drop_frame</span><span class="p">,</span> <span class="n">VALID_NON_DROP_FRAME_DELIMITERS</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">drop_frame</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">tc_drop_frame</span><span class="p">:</span>
+            <span class="c1"># We will accept that this timecode should be drop frame despite the fact that</span>
+            <span class="c1"># it does not contain the typical drop frame delimiter(s).</span>
+            <span class="c1"># @todo: Log a warning about this once we have a logger in the framework.</span>
+            <span class="n">tc_drop_frame</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="n">tc_drop_frame</span>
+
+
+<div class="viewcode-block" id="Timecode"><a class="viewcode-back" href="../../timecode.html#edl.Timecode">[docs]</a><span class="k">class</span> <span class="nc">Timecode</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Timecode object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timecode_string</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiate a Timecode object from a timecode or frame number as a string.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            The following sites were referenced for determining the best way to formulate</span>
+<span class="sd">            the calculations in this module and are provided as a reference:</span>
+<span class="sd">                </span>
+<span class="sd">                - http://andrewduncan.net/timecodes/</span>
+<span class="sd">                - http://www.davidheidelberger.com/blog/?p=29</span>
+<span class="sd">                - https://documentation.apple.com/en/finalcutpro/usermanual/index.html#chapter=D%26section=6</span>
+<span class="sd">                - http://www.connect.ecuad.ca/~mrose/pdf_documents/timecode.pdf</span>
+<span class="sd">                - http://www.evertz.com/resources/The-Right-Time.pdf</span>
+
+<span class="sd">        :param timecode_string: A timecode as a string (formatted as hh:mm:ss:ff for non-drop frame </span>
+<span class="sd">                                or hh:mm:ss;ff for drop frame) or a frame number as a string.</span>
+<span class="sd">        :param fps: Frames per second setting as an int or float. Default is 24.</span>
+<span class="sd">        :param drop_frame: Boolean indicating whether to use drop frame or not. None if the </span>
+<span class="sd">                           timecode string should determine this value. Default is None.</span>
+
+<span class="sd">        :raises: ValueError if timecode_string cannot be transformed into a Timecode object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If we can convert the timecode_string to an int, we assume we</span>
+        <span class="c1"># have a frame number and convert it to an absolute timecode using</span>
+        <span class="c1"># our fps value. All calculations, etc. from this point on treat</span>
+        <span class="c1"># the input as if it was a timecode and not a frame.</span>
+        <span class="k">if</span> <span class="n">timecode_string</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">new_timecode_string</span> <span class="o">=</span> <span class="n">timecode_from_frame</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">timecode_string</span><span class="p">),</span> <span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_hours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames</span> <span class="o">=</span> \
+                    <span class="bp">self</span><span class="o">.</span><span class="n">parse_timecode</span><span class="p">(</span><span class="n">new_timecode_string</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="o">=</span> <span class="n">drop_frame</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Frame number </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> can not be converted to a Timecode: </span><span class="si">%s</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">timecode_string</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Parse the timecode_string into values.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">parse_timecode</span><span class="p">(</span><span class="n">timecode_string</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="o">=</span> <span class="n">_compute_drop_frame_setting</span><span class="p">(</span><span class="n">timecode_string</span><span class="p">,</span> <span class="n">drop_frame</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span> <span class="ow">and</span> <span class="n">fps</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_DROP_FRAME_FPS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;Invalid fps setting </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">. Time code calculation logic only supports drop frame &quot;</span>
+                <span class="s2">&quot;calculations for the following fps values: </span><span class="si">%s</span><span class="s2">.&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">fps</span><span class="p">,</span> <span class="n">VALID_DROP_FRAME_FPS</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span> <span class="o">=</span> <span class="n">fps</span>
+
+        <span class="c1"># Use the &quot;correct&quot; frame token delimiter</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_frame_delimiter</span> <span class="o">=</span> <span class="n">DROP_FRAME_DELIMITER</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_frame_delimiter</span> <span class="o">=</span> <span class="n">NON_DROP_FRAME_DELIMITER</span>
+
+        <span class="c1"># Do some basic validation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_values</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_validate_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate Timecode values are valid.</span>
+
+<span class="sd">        :raises: ValueError if minute or second values are &gt; 59.</span>
+<span class="sd">        :raises: BadFrameRateError if frame value is &gt;= fps setting.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span> <span class="o">&gt;</span> <span class="mi">59</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Invalid minutes value </span><span class="si">%d</span><span class="s2">, it must be smaller than 60&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span> <span class="o">&gt;</span> <span class="mi">59</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Invalid seconds value </span><span class="si">%d</span><span class="s2">, it must be smaller than 60&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BadFrameRateError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Timecode.str_is_drop_frame"><a class="viewcode-back" href="../../timecode.html#edl.Timecode.str_is_drop_frame">[docs]</a>    <span class="k">def</span> <span class="nf">str_is_drop_frame</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">timecode_str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine whether the timecode string uses drop frame notation or not.</span>
+
+<span class="sd">        Drop frame timecodes are typically delimited by a ; or , while non-drop frame</span>
+<span class="sd">        timecodes are delimited by : or .</span>
+
+<span class="sd">        :param timecode_str: String representation of the timecode to parse.</span>
+
+<span class="sd">        :returns: Boolean True if timecode is using drop frame notation, False if not.</span>
+<span class="sd">        :raises: ValueError if timecode_str is not a valid hh:mm:ss:ff format and cannot</span>
+<span class="sd">                 be parsed correctly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Find the delimited being used between the seconds and frames entry.</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;.*(</span><span class="si">%s</span><span class="s2">)\d</span><span class="si">{2}</span><span class="s2">$&quot;</span> <span class="o">%</span> <span class="n">VALID_TIMECODE_DELIMITERS</span><span class="p">,</span> <span class="n">timecode_str</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Timecode </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> is not in a valid format (eg. hh:mm:ss:ff or hh:mm:ss;ff). &quot;</span>
+                <span class="s2">&quot;The timecode must be delimited by one of the following characters: </span><span class="si">%s</span><span class="s2">&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">timecode_str</span><span class="p">,</span> <span class="n">VALID_TIMECODE_DELIMITERS</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">frame_delimiter</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Check the delimiter with those that indicate drop frame notation.</span>
+        <span class="k">if</span> <span class="n">frame_delimiter</span> <span class="ow">in</span> <span class="n">VALID_DROP_FRAME_DELIMITERS</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Timecode.parse_timecode"><a class="viewcode-back" href="../../timecode.html#edl.Timecode.parse_timecode">[docs]</a>    <span class="k">def</span> <span class="nf">parse_timecode</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">timecode_str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse a timecode string to valid hour, minute, second, and frame values.</span>
+
+<span class="sd">        Splits the timecode string by any non-alphanumeric character. This ensures that that </span>
+<span class="sd">        we can support various formats of delimiting timecode strings. </span>
+<span class="sd">        For example::</span>
+
+<span class="sd">            00:12:34:21 # NON-DROP FRAME variation 1</span>
+<span class="sd">            00:12:34.21 # NON-DROP FRAME variation 2</span>
+<span class="sd">            00:12:34;21 # DROP FRAME variation 1</span>
+<span class="sd">            00:12:34,21 # DROP FRAME variation 2</span>
+<span class="sd">            00;12;34;56 # DROP FRAME variation 3</span>
+
+<span class="sd">        :param timecode_str: A timecode string (eg. ``hh:mm:ss:ff`` for non-drop frame </span>
+<span class="sd">                             or ``hh:mm:ss;ff`` for drop frame).</span>
+<span class="sd">        :return: Tuple of (hours, minutes, seconds, frames) where all values are ints.</span>
+<span class="sd">        :raises: ValueError if string cannot be parsed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">r&quot;(\d{2,3}):(\d</span><span class="si">{2}</span><span class="s2">):(\d</span><span class="si">{2}</span><span class="s2">)[:;\.,](\d</span><span class="si">{2}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">timecode_str</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Timecode </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> is not in a valid format (eg. hh:mm:ss:ff or hh:mm:ss;ff).&quot;</span>
+                <span class="o">%</span> <span class="n">timecode_str</span>
+            <span class="p">)</span>
+
+        <span class="n">tc_tuple</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)),</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">)),</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">4</span><span class="p">)),)</span>
+
+        <span class="k">return</span> <span class="n">tc_tuple</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Timecode.from_frame"><a class="viewcode-back" href="../../timecode.html#edl.Timecode.from_frame">[docs]</a>    <span class="k">def</span> <span class="nf">from_frame</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a new :class:`Timecode` for the given frame, at the given fps.</span>
+
+<span class="sd">        :param frame: A frame number, as an :obj:`int`.</span>
+<span class="sd">        :param fps: Number of frames per second, as an :obj:`int` or :obj:`float`. Defaults to 24.</span>
+<span class="sd">        :param drop_frame: Boolean indicating whether to use drop frame or not. Default </span>
+<span class="sd">                           is ``False``.</span>
+<span class="sd">        </span>
+<span class="sd">        :return: A :class:`Timecode` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">timecode</span> <span class="o">=</span> <span class="n">timecode_from_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Timecode</span><span class="p">(</span><span class="n">timecode</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fps</span><span class="p">,</span> <span class="n">drop_frame</span><span class="o">=</span><span class="n">drop_frame</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Timecode.to_frame"><a class="viewcode-back" href="../../timecode.html#edl.Timecode.to_frame">[docs]</a>    <span class="k">def</span> <span class="nf">to_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the frame number corresponding to this :class:`Timecode` instance.</span>
+
+<span class="sd">        :return: A frame number, as an :obj:`int`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">frame_from_timecode</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Timecode.to_seconds"><a class="viewcode-back" href="../../timecode.html#edl.Timecode.to_seconds">[docs]</a>    <span class="k">def</span> <span class="nf">to_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert this :class:`Timecode` to seconds, using its frame rate.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            We use the :mod:`decimal` module here in order to ensure our math is accurate</span>
+<span class="sd">            and not subject to rounding errors. The reason we use it here and not when doing</span>
+<span class="sd">            frame/timecode calculations is because time is an exact calculation</span>
+<span class="sd">            whereas frames is not (since there is no such thing as a fractional frame).</span>
+
+<span class="sd">            When using a float frame rate (fps) calculations of frames and timecode are not</span>
+<span class="sd">            technically exact, and will cause time drift away from &quot;wall clock&quot; time. But</span>
+<span class="sd">            this is still correct. Drop frame was created to help mitigate this and it attempts </span>
+<span class="sd">            to correct the drift by skipping frame numbers at certain intervals. However, it&#39;s </span>
+<span class="sd">            still technically not exact and will usually be a fraction of time off. But it&#39;s </span>
+<span class="sd">            exact enough for the editorial world.   </span>
+
+<span class="sd">        .. seealso:: https://docs.python.org/2/tutorial/floatingpoint.html#tut-fp-issues</span>
+
+<span class="sd">        :return: Number of seconds as a :obj:`Decimal`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">decimal</span><span class="o">.</span><span class="n">Decimal</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span></div>
+
+    <span class="c1"># Redefine some standard operators.</span>
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        + operator override: Add a Timecode or a number of frames to this :class:`Timecode`</span>
+<span class="sd">        with the :class:`Timecode` on the right of the operator.</span>
+
+<span class="sd">        :param right: Right operand for ``+`` operator, either a :class:`Timecode` instance or an </span>
+<span class="sd">                      :obj:`int` representing a number of frames.</span>
+<span class="sd">        </span>
+<span class="sd">        :return: A new :class:`Timecode` instance, in this :class:`Timecode` fps, result of the </span>
+<span class="sd">                 addition.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">Timecode</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">+</span> <span class="n">right</span><span class="o">.</span><span class="n">to_frame</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">+</span> <span class="n">right</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Unsupported operand type </span><span class="si">%s</span><span class="s2"> for +&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">right</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__radd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">left</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        + operator override : Add a number of frames to this :class:`Timecode`, with the</span>
+<span class="sd">        timecode on the left of the ``+`` operator.</span>
+
+<span class="sd">        :param left: Left operand for ``+`` operator, either a :class:`Timecode` instance or an </span>
+<span class="sd">                     :obj:`int` representing a number of frames.</span>
+<span class="sd">        :return: A new :class:`Timecode` instance, in this :class:`Timecode` fps, result of the </span>
+<span class="sd">                 addition.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__add__</span><span class="p">(</span><span class="n">left</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        - operator override : Subtract a Timecode or a number of frames to this :class:`Timecode`</span>
+<span class="sd">        with the timecode on the right of the operator.</span>
+
+<span class="sd">        :param right: Right operand for ``-`` operator, either a :class:`Timecode` instance or an </span>
+<span class="sd">                      :obj:`int` representing a number of frames.</span>
+<span class="sd">        :return: A new :class:`Timecode` instance, in this :class:`Timecode` fps, result of the </span>
+<span class="sd">                 subtraction.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">Timecode</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">-</span> <span class="n">right</span><span class="o">.</span><span class="n">to_frame</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span> <span class="o">-</span> <span class="n">right</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Unsupported operand type </span><span class="si">%s</span><span class="s2"> for -&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">right</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__rsub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">left</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        - operator override : Subtract a number of frames to this :class:`Timecode`, with the</span>
+<span class="sd">        timecode on the left of the ``-`` operator.</span>
+
+<span class="sd">        :param left: Left operand for ``-`` operator, either a :class:`Timecode` instance or an </span>
+<span class="sd">                     :obj:`int` representing a number of frames.</span>
+<span class="sd">        :return: A new :class:`Timecode` instance, in this :class:`Timecode` fps, result of the </span>
+<span class="sd">                 subtraction.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__sub__</span><span class="p">(</span><span class="n">left</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        String representation of this :class:`Timecode` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%02d</span><span class="s2">:</span><span class="si">%02d</span><span class="s2">:</span><span class="si">%02d%s%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frame_delimiter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Code representation of this :class:`Timecode` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">drop</span> <span class="o">=</span> <span class="s2">&quot;ND&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_frame</span><span class="p">:</span>
+            <span class="n">drop</span> <span class="o">=</span> <span class="s2">&quot;D&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;class </span><span class="si">%s</span><span class="s2"> </span><span class="si">%02d</span><span class="s2">:</span><span class="si">%02d</span><span class="s2">:</span><span class="si">%02d%s%02d</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">fps </span><span class="si">%s</span><span class="s2">)&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minutes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seconds</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_frame_delimiter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fps</span><span class="p">,</span> <span class="n">drop</span>
+        <span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Autodesk.
+
+    </p>
+  </div>
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+
+
+
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'v1.4.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+
+
+
+
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-2114792-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+</body>
+</html>

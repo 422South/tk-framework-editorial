@@ -1,0 +1,493 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Timecode &mdash; tk-framework-editorial v1.4.0 documentation</title>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+
+
+
+
+
+    <link rel="top" title="tk-framework-editorial v1.4.0 documentation" href="index.html"/>
+        <link rel="prev" title="EDL" href="edl.html"/>
+
+
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+
+  <div class="wy-grid-for-nav">
+
+
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+
+    <a href='http://developer.shotgridsoftware.com'>
+
+        <img style='width: 191px;
+                height: 60px;
+                margin: 2px;
+                border-radius: 0px;
+                padding: 0px;'
+            src='_static/logo@2x.png'/>
+
+    </a>
+
+
+
+            <a href="index.html" class="icon icon-home"> tk-framework-editorial
+
+
+
+          </a>
+
+
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+
+
+
+
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="edl.html">EDL</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Timecode</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Timecode</a></li>
+</ul>
+</li>
+</ul>
+
+
+
+
+    <div style='margin-top: 50px;
+                margin-left: 10px;
+                margin-right: 10px;
+                padding: 10px;
+                color: #b3b3b3;
+                font-size: 70%;
+                border-radius: 3px;
+                background-color: #444;
+                line-height: 18px;
+                '>
+    <style>
+        a.custom_post_menu { display: inline;
+                             padding: 0px;
+                             text-decoration: underline; }
+    </style>
+
+    <b>tk-framework-editorial</b> v1.4.0.<br>
+
+        This documentation is part of the ShotGrid Pipeline Toolkit.
+
+    For more information, please visit
+    <a class=custom_post_menu href='https://support.shotgunsoftware.com/home'>ShotGrid Support</a>.
+    The code associated with this documentation can be found
+    <a class=custom_post_menu href='https://github.com/shotgunsoftware/tk-framework-editorial'>here</a>.
+
+    </div>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">tk-framework-editorial</a>
+
+      </nav>
+
+
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+
+      <li><a href="index.html">Docs</a> &raquo;</li>
+
+      <li>Timecode</li>
+
+
+      <li class="wy-breadcrumbs-aside">
+
+
+
+      </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <div class="section" id="timecode">
+<h1>Timecode<a class="headerlink" href="#timecode" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id1">
+<h2>Timecode<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="edl.Timecode">
+<em class="property">class </em><code class="descclassname">edl.</code><code class="descname">Timecode</code><span class="sig-paren">(</span><em>timecode_string</em>, <em>fps=24</em>, <em>drop_frame=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#Timecode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.Timecode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A Timecode object.</p>
+<p>Instantiate a Timecode object from a timecode or frame number as a string.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The following sites were referenced for determining the best way to formulate
+the calculations in this module and are provided as a reference:</p>
+<blockquote class="last">
+<div><ul class="simple">
+<li><a class="reference external" href="http://andrewduncan.net/timecodes/">http://andrewduncan.net/timecodes/</a></li>
+<li><a class="reference external" href="http://www.davidheidelberger.com/blog/?p=29">http://www.davidheidelberger.com/blog/?p=29</a></li>
+<li><a class="reference external" href="https://documentation.apple.com/en/finalcutpro/usermanual/index.html#chapter=D%26section=6">https://documentation.apple.com/en/finalcutpro/usermanual/index.html#chapter=D%26section=6</a></li>
+<li><a class="reference external" href="http://www.connect.ecuad.ca/~mrose/pdf_documents/timecode.pdf">http://www.connect.ecuad.ca/~mrose/pdf_documents/timecode.pdf</a></li>
+<li><a class="reference external" href="http://www.evertz.com/resources/The-Right-Time.pdf">http://www.evertz.com/resources/The-Right-Time.pdf</a></li>
+</ul>
+</div></blockquote>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>timecode_string</strong> &#8211; A timecode as a string (formatted as hh:mm:ss:ff for non-drop frame
+or hh:mm:ss;ff for drop frame) or a frame number as a string.</li>
+<li><strong>fps</strong> &#8211; Frames per second setting as an int or float. Default is 24.</li>
+<li><strong>drop_frame</strong> &#8211; Boolean indicating whether to use drop frame or not. None if the
+timecode string should determine this value. Default is None.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last">ValueError if timecode_string cannot be transformed into a Timecode object.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="classmethod">
+<dt id="edl.Timecode.str_is_drop_frame">
+<em class="property">classmethod </em><code class="descname">str_is_drop_frame</code><span class="sig-paren">(</span><em>timecode_str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#Timecode.str_is_drop_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.Timecode.str_is_drop_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine whether the timecode string uses drop frame notation or not.</p>
+<p>Drop frame timecodes are typically delimited by a ; or , while non-drop frame
+timecodes are delimited by : or .</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>timecode_str</strong> &#8211; String representation of the timecode to parse.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Boolean True if timecode is using drop frame notation, False if not.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body">ValueError if timecode_str is not a valid hh:mm:ss:ff format and cannot
+be parsed correctly.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="edl.Timecode.parse_timecode">
+<em class="property">classmethod </em><code class="descname">parse_timecode</code><span class="sig-paren">(</span><em>timecode_str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#Timecode.parse_timecode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.Timecode.parse_timecode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse a timecode string to valid hour, minute, second, and frame values.</p>
+<p>Splits the timecode string by any non-alphanumeric character. This ensures that that
+we can support various formats of delimiting timecode strings.
+For example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="mi">00</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">34</span><span class="p">:</span><span class="mi">21</span> <span class="c1"># NON-DROP FRAME variation 1</span>
+<span class="mi">00</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mf">34.21</span> <span class="c1"># NON-DROP FRAME variation 2</span>
+<span class="mi">00</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">34</span><span class="p">;</span><span class="mi">21</span> <span class="c1"># DROP FRAME variation 1</span>
+<span class="mi">00</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">34</span><span class="p">,</span><span class="mi">21</span> <span class="c1"># DROP FRAME variation 2</span>
+<span class="mi">00</span><span class="p">;</span><span class="mi">12</span><span class="p">;</span><span class="mi">34</span><span class="p">;</span><span class="mi">56</span> <span class="c1"># DROP FRAME variation 3</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>timecode_str</strong> &#8211; A timecode string (eg. <code class="docutils literal"><span class="pre">hh:mm:ss:ff</span></code> for non-drop frame
+or <code class="docutils literal"><span class="pre">hh:mm:ss;ff</span></code> for drop frame).</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Tuple of (hours, minutes, seconds, frames) where all values are ints.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body">ValueError if string cannot be parsed.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="edl.Timecode.from_frame">
+<em class="property">classmethod </em><code class="descname">from_frame</code><span class="sig-paren">(</span><em>frame</em>, <em>fps=24</em>, <em>drop_frame=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#Timecode.from_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.Timecode.from_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a new <a class="reference internal" href="#edl.Timecode" title="edl.Timecode"><code class="xref py py-class docutils literal"><span class="pre">Timecode</span></code></a> for the given frame, at the given fps.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>frame</strong> &#8211; A frame number, as an <a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><code class="xref py py-obj docutils literal"><span class="pre">int</span></code></a>.</li>
+<li><strong>fps</strong> &#8211; Number of frames per second, as an <a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><code class="xref py py-obj docutils literal"><span class="pre">int</span></code></a> or <a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><code class="xref py py-obj docutils literal"><span class="pre">float</span></code></a>. Defaults to 24.</li>
+<li><strong>drop_frame</strong> &#8211; Boolean indicating whether to use drop frame or not. Default
+is <code class="docutils literal"><span class="pre">False</span></code>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A <a class="reference internal" href="#edl.Timecode" title="edl.Timecode"><code class="xref py py-class docutils literal"><span class="pre">Timecode</span></code></a> instance.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="edl.Timecode.to_frame">
+<code class="descname">to_frame</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#Timecode.to_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.Timecode.to_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the frame number corresponding to this <a class="reference internal" href="#edl.Timecode" title="edl.Timecode"><code class="xref py py-class docutils literal"><span class="pre">Timecode</span></code></a> instance.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A frame number, as an <a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><code class="xref py py-obj docutils literal"><span class="pre">int</span></code></a>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="edl.Timecode.to_seconds">
+<code class="descname">to_seconds</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#Timecode.to_seconds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.Timecode.to_seconds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert this <a class="reference internal" href="#edl.Timecode" title="edl.Timecode"><code class="xref py py-class docutils literal"><span class="pre">Timecode</span></code></a> to seconds, using its frame rate.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>We use the <a class="reference external" href="https://docs.python.org/2/library/decimal.html#module-decimal" title="(in Python v2.7)"><code class="xref py py-mod docutils literal"><span class="pre">decimal</span></code></a> module here in order to ensure our math is accurate
+and not subject to rounding errors. The reason we use it here and not when doing
+frame/timecode calculations is because time is an exact calculation
+whereas frames is not (since there is no such thing as a fractional frame).</p>
+<p class="last">When using a float frame rate (fps) calculations of frames and timecode are not
+technically exact, and will cause time drift away from &#8220;wall clock&#8221; time. But
+this is still correct. Drop frame was created to help mitigate this and it attempts
+to correct the drift by skipping frame numbers at certain intervals. However, it&#8217;s
+still technically not exact and will usually be a fraction of time off. But it&#8217;s
+exact enough for the editorial world.</p>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p class="last"><a class="reference external" href="https://docs.python.org/2/tutorial/floatingpoint.html#tut-fp-issues">https://docs.python.org/2/tutorial/floatingpoint.html#tut-fp-issues</a></p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Number of seconds as a <code class="xref py py-obj docutils literal"><span class="pre">Decimal</span></code>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="edl.frame_from_timecode">
+<code class="descclassname">edl.</code><code class="descname">frame_from_timecode</code><span class="sig-paren">(</span><em>timecode</em>, <em>fps=24</em>, <em>drop_frame=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#frame_from_timecode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.frame_from_timecode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the frame number for the given timecode.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>timecode</strong> &#8211; A timecode as a string (formatted as <code class="docutils literal"><span class="pre">hh:mm:ss:ff</span></code> for non-drop frame
+or <code class="docutils literal"><span class="pre">hh:mm:ss;ff</span></code> for drop frame) or as a (hours, minutes, seconds, frames)
+tuple.</li>
+<li><strong>fps</strong> &#8211; Number of frames per second as an int or float. Default is 24.</li>
+<li><strong>drop_frame</strong> &#8211; Boolean determining whether timecode should use drop frame or not. None if
+this value should be determined by the timecode&#8217;s delimiter notation.
+Default is None.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Corresponding frame number, as an int.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last">NotImplementedError if <code class="docutils literal"><span class="pre">drop_frame</span></code> is <code class="docutils literal"><span class="pre">True</span></code> and the fps value is unsupported
+for drop frame.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="edl.timecode_from_frame">
+<code class="descclassname">edl.</code><code class="descname">timecode_from_frame</code><span class="sig-paren">(</span><em>frame_number</em>, <em>fps=24</em>, <em>drop_frame=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/edl/timecode.html#timecode_from_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#edl.timecode_from_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the timecode corresponding to the given frame.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>We don&#8217;t need to use the <a class="reference external" href="https://docs.python.org/2/library/decimal.html#module-decimal" title="(in Python v2.7)"><code class="xref py py-mod docutils literal"><span class="pre">decimal</span></code></a> module here because frame/timecode calculations
+are not exact (there is no such thing as a fractional frame).</p>
+<p class="last">When using a float frame rate (fps) calculations of frames and timecode are not
+technically exact, and will cause time drift away from &#8220;wall clock&#8221; time. But
+this is still correct. Drop frame was created to help mitigate this and it attempts
+to correct the drift by skipping frame numbers at certain intervals. However, it&#8217;s
+still technically not exact and will usually be a fraction of time off. But it&#8217;s
+exact enough for the editorial world (and is therefore &#8220;correct&#8221;).</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>frame_number</strong> &#8211; A frame number, as an int.</li>
+<li><strong>fps</strong> &#8211; Number of frames per seconds, as an int or float. Default is 24.</li>
+<li><strong>drop_frame</strong> &#8211; Boolean determining whether timecode should use drop frame or not. Default
+is False.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Timecode as string, e.g. <code class="docutils literal"><span class="pre">01:02:12:32</span></code> (non-drop frame) or
+<code class="docutils literal"><span class="pre">01:02:12;32</span></code> (drop frame).</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last">NotImplementedError if drop_frame is True and the fps value is unsupported for drop
+frame.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+
+        <a href="edl.html" class="btn btn-neutral" title="EDL" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+
+    </div>
+
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Autodesk.
+
+    </p>
+  </div>
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+
+
+
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'v1.4.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+
+
+
+
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-2114792-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+</body>
+</html>
