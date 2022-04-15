@@ -29,6 +29,7 @@ _COMMENT_REGEXP = re.compile(
     "\*?\s*(?P<type>(?:%s))\s*:\s+(?P<value>.*)" % ")|(?:".join(_COMMENTS_KEYWORDS)
 )
 
+_FIXUP_SOURCE = True
 
 class EditProcessor(object):
     """
@@ -410,9 +411,32 @@ class EditEvent(object):
         Later we might want to parse the tokens, and store some actual
         retime values.
 
+        NOW WE ARE GOING TO REPROCESS THE SOURCE IN / OUT
+
         :param tokens: List of tokens for the retime.
         """
-        self._retime = " ".join(tokens)
+        retime = {}
+        _RETIME_COMMENTS = ["Freeze Frame", "Reverse motion", "Slow motion"]
+        retime['tokens'] = tokens
+        retime['source_in'] = Timecode(
+                            tokens[3], fps=self.fps, drop_frame=self._drop_frame
+                        )
+        retime['speed'] = tokens[2]
+        if tokens[2] == 0:
+            retime['comment'] = "%s (%s fps)" % (_RETIME_COMMENTS[0], tokens[2])
+        if tokens[2] < 0:
+            retime['comment'] = "%s (%s fps)" % (_RETIME_COMMENTS[1], tokens[2])
+        if tokens[2] > 0:
+            retime['comment'] = "%s (%s fps)" % (_RETIME_COMMENTS[2], tokens[2])
+
+        self._retime = retime
+        # self._retime = " ".join(tokens)
+        if _FIXUP_SOURCE:
+            duration = self._record_out.to_frame() - self._record_in.to_frame()
+            source_duration = float(tokens[2])/self._fps * duration
+            if source_duration <> 0:
+                source_retime_in_frames = retime['source_in'].to_frame() + source_duration
+                self._source_in = self._source_in.from_frame(source_retime_in_frames+ 1, self._fps, self._drop_frame)
 
     def __str__(self):
         """

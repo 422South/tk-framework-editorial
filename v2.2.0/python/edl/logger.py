@@ -37,7 +37,7 @@ class FrameworkLogHandler(logging.StreamHandler):
                 self._framework.log_error(record.getMessage())
 
 
-def get_logger(level=logging.WARN):
+def get_logger(level=logging.INFO):
     """
     Retrieve a logger
     """
