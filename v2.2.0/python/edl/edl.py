@@ -218,7 +218,7 @@ class EditEvent(object):
         self._effects = []
         self._comments = []
         self._meta_data = {}  # A place holder where additional meta data can be stored
-        self._retime = None
+        self._retime = {}
         self._fps = fps
         self._drop_frame = drop_frame
         self._id = int(id)
@@ -403,6 +403,11 @@ class EditEvent(object):
         """
         return bool(self._retime)
 
+
+    @property
+    def retime_comment(self):
+        return self._retime['comment']
+
     def add_retime(self, tokens):
         """
         For now, just register the retime line as a string and append it to the
@@ -419,15 +424,18 @@ class EditEvent(object):
         _RETIME_COMMENTS = ["Freeze Frame", "Reverse motion", "Slow motion"]
         retime['tokens'] = tokens
         retime['source_in'] = Timecode(
-                            tokens[3], fps=self.fps, drop_frame=self._drop_frame
+                            tokens[3], fps=self.fps, drop_frame=self._drop_frame,source=True
                         )
         retime['speed'] = tokens[2]
-        if tokens[2] == 0:
-            retime['comment'] = "%s (%s fps)" % (_RETIME_COMMENTS[0], tokens[2])
-        if tokens[2] < 0:
-            retime['comment'] = "%s (%s fps)" % (_RETIME_COMMENTS[1], tokens[2])
-        if tokens[2] > 0:
-            retime['comment'] = "%s (%s fps)" % (_RETIME_COMMENTS[2], tokens[2])
+        record_duration = self._record_out.to_frame()-self.record_in.to_frame()
+        if abs(float(tokens[2])) < 0.0001:
+            retime['comment'] = "%s (duration %s)" % (_RETIME_COMMENTS[0], record_duration)
+        else:
+            if float(tokens[2]) < 0:
+                retime['comment'] = "%s (%s fps , record dur %s)" % (_RETIME_COMMENTS[1], tokens[2], record_duration)
+            else:
+                if float(tokens[2]) > 0:
+                    retime['comment'] = "%s (%s fps , record dur %s)" % (_RETIME_COMMENTS[2], tokens[2], record_duration)
 
         self._retime = retime
         # self._retime = " ".join(tokens)
