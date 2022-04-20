@@ -442,9 +442,12 @@ class EditEvent(object):
         if _FIXUP_SOURCE:
             duration = self._record_out.to_frame() - self._record_in.to_frame()
             source_duration = float(tokens[2])/self._fps * duration
-            if source_duration <> 0:
+            if source_duration < 0:
                 source_retime_in_frames = retime['source_in'].to_frame() + source_duration
-                self._source_in = self._source_in.from_frame(source_retime_in_frames+ 1, self._fps, self._drop_frame)
+                if source_retime_in_frames < 0:
+                    retime['comment'] = retime['comment'] + " Warn: source is %s frames short!" % int(abs(source_retime_in_frames))
+                    source_retime_in_frames = 0
+                self._source_in = Timecode.from_frame(source_retime_in_frames + 1, self._fps, self._drop_frame)
 
     def __str__(self):
         """
