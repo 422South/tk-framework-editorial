@@ -29,6 +29,9 @@ _COMMENT_REGEXP = re.compile(
     "\*?\s*(?P<type>(?:%s))\s*:\s+(?P<value>.*)" % ")|(?:".join(_COMMENTS_KEYWORDS)
 )
 
+
+
+
 _FIXUP_SOURCE = True
 
 class EditProcessor(object):
@@ -549,6 +552,17 @@ class EditList(object):
         """
         cls.__logger = logger
 
+
+    def set_tape(self,tape):
+        """
+
+        :param tape:
+        :return:
+        """
+        self._tape = tape
+
+
+
     @property
     def has_transitions(self):
         """
@@ -723,11 +737,14 @@ class EditList(object):
             for effect in edit._effects:
                 effect_tokens = effect.split()
                 # Modify some timecode if we have a cross-dissolve.
-                if effect_tokens[3] == "D":
+                if re.match(r'[Dd].*|[wW].*', effect_tokens[3]):
+                # if effect_tokens[3] == "D":
                     self._has_transitions = True
                     # We don't want to go negative here, else we'll grab edits
                     # from the end of the list.
-                    if prev > -1:
+                    #TODO This does not need to be done as the previous edit is not related to the dissolve?
+                    # For now only doing for dissolve !!
+                    if prev > -1 and effect_tokens[3] == "D":
                         # Add the transition duration to the previous edit's source out.
                         trans_duration = Timecode(
                             effect_tokens[4], fps=edit.fps, drop_frame=self._drop_frame
@@ -749,7 +766,7 @@ class EditList(object):
                             fps=self._edits[prev].fps,
                             drop_frame=self._drop_frame,
                         )
-                    # Take the values from the Dissolve effect for the current edit.
+                    #Take the values from the Dissolve effect for the current edit.
                     edit._source_in = Timecode(
                         effect_tokens[5], fps=edit.fps, drop_frame=self._drop_frame
                     )
