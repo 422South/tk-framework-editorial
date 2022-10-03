@@ -667,8 +667,9 @@ class EditList(object):
                                     "setting the drop frame mode for the entire EDL. Any "
                                     "additional FCM notes will be ignored." % line
                                 )
-                    elif len(line_tokens) > 1 and line_tokens[1] == "BL":
-                        raise BadBLError(os.path.basename(path))
+                                #TODO - Removed bad BL error
+                    # elif len(line_tokens) > 1 and line_tokens[1] == "BL":
+                    #     raise BadBLError(os.path.basename(path))
                     elif line_tokens[0] == "M2":  # Retime
                         if not edit:
                             raise RuntimeError("Found unexpected line")
